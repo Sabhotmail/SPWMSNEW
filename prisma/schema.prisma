@@ -21,7 +21,7 @@ model User {
   password     String
   email        String?   @db.VarChar(100)
   role         Int       @default(1)
-  branchCode   String    @map("branch_code") @db.VarChar(20)
+  branchCode   String?   @map("branch_code") @db.VarChar(20)
   status       String    @default("ACTIVE") @db.VarChar(20)
   passwordDate DateTime? @map("password_date")
   createdAt    DateTime  @default(now()) @map("created_at")
