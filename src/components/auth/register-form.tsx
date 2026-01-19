@@ -32,7 +32,7 @@ const registerSchema = z
         email: z.string().email("รูปแบบอีเมลไม่ถูกต้อง").optional().or(z.literal("")),
         password: z.string().min(6, "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"),
         confirmPassword: z.string().min(1, "กรุณายืนยันรหัสผ่าน"),
-        branchCode: z.string().min(1, "กรุณาเลือกสาขา"),
+        branchCode: z.string().optional(),
     })
     .refine((data) => data.password === data.confirmPassword, {
         message: "รหัสผ่านไม่ตรงกัน",
@@ -165,37 +165,7 @@ export function RegisterForm() {
                         </FormItem>
                     )}
                 />
-                <FormField
-                    control={form.control}
-                    name="branchCode"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>สาขา *</FormLabel>
-                            <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                                disabled={isLoading}
-                            >
-                                <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="เลือกสาขา" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    {branches.map((branch) => (
-                                        <SelectItem
-                                            key={branch.branchCode}
-                                            value={branch.branchCode}
-                                        >
-                                            {branch.branchName}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                {/* Branch field hidden - users don't need to select branch during registration */}
                 <FormField
                     control={form.control}
                     name="password"
