@@ -31,8 +31,8 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache openssl
+# Install runtime dependencies (including netcat for db health check)
+RUN apk add --no-cache openssl netcat-openbsd
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -51,11 +51,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy Prisma schema and migrations
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy Prisma CLI for migrations (needed for entrypoint)
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+# Copy full node_modules for Prisma CLI (required for migrations)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Copy startup script
 COPY --from=builder /app/deployment/docker-entrypoint.sh ./
