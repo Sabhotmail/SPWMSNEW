@@ -52,7 +52,7 @@ interface UserData {
     username: string;
     email: string | null;
     role: number;
-    branchCode: string;
+    branchCode: string | null;
     status: string;
     createdAt: Date;
 }
@@ -128,7 +128,7 @@ export function UsersClient({ initialUsers, branches }: UsersClientProps) {
             password: "",
             email: user.email || "",
             role: String(user.role),
-            branchCode: user.branchCode,
+            branchCode: user.branchCode || "",
             status: user.status,
         });
         setIsEditDialogOpen(true);
@@ -397,7 +397,7 @@ export function UsersClient({ initialUsers, branches }: UsersClientProps) {
                                                     {roleNames[user.role]?.name || `Role ${user.role}`}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-slate-600">{user.branchCode}</TableCell>
+                                            <TableCell className="text-slate-600">{user.branchCode || "-"}</TableCell>
                                             <TableCell>
                                                 <Badge className={user.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}>
                                                     {user.status}

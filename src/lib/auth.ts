@@ -40,7 +40,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     name: user.username,
                     email: user.email,
                     role: user.role,
-                    branchCode: user.branchCode,
+                    branchCode: user.branchCode || "",
                     userId: user.userId,
                 };
             },

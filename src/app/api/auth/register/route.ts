@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
                 password: hashedPassword,
                 email: email || null,
                 role: 1, // Default role
-                branchCode: branchCode ?? undefined,
+                ...(branchCode ? { branchCode } : {}),
                 status: "ACTIVE",
                 passwordDate: new Date(),
             },
