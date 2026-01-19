@@ -1,0 +1,89 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: spwms-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-spwms_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-spwms_password}
+      POSTGRES_DB: ${POSTGRES_DB:-spwms_production}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - spwms-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-spwms_user}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # SPWMS Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spwms-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-spwms_user}:${POSTGRES_PASSWORD:-spwms_password}@postgres:5432/${POSTGRES_DB:-spwms_production}?schema=public
+
+      # NextAuth
+      AUTH_SECRET: ${AUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+
+      # App
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-SP WMS}
+      NEXT_PUBLIC_APP_VERSION: ${NEXT_PUBLIC_APP_VERSION:-2.0.0}
+      NODE_ENV: production
+      PORT: 3000
+
+      # Legacy Database (optional)
+      LEGACY_DB_HOST: ${LEGACY_DB_HOST}
+      LEGACY_DB_PORT: ${LEGACY_DB_PORT:-5432}
+      LEGACY_DB_NAME: ${LEGACY_DB_NAME}
+      LEGACY_DB_USER: ${LEGACY_DB_USER}
+      LEGACY_DB_PASSWORD: ${LEGACY_DB_PASSWORD}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    networks:
+      - spwms-network
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: spwms-nginx
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deployment/ssl:/etc/nginx/ssl:ro
+    networks:
+      - spwms-network
+    profiles:
+      - with-nginx
+
+networks:
+  spwms-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

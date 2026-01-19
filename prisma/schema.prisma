@@ -1,0 +1,504 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================
+// Authentication Models
+// =====================
+
+model User {
+  id           Int       @id @default(autoincrement())
+  userId       String    @unique @map("user_id") @db.VarChar(50)
+  username     String    @db.VarChar(200)
+  password     String
+  email        String?   @db.VarChar(100)
+  role         Int       @default(1)
+  branchCode   String    @map("branch_code") @db.VarChar(20)
+  status       String    @default("ACTIVE") @db.VarChar(20)
+  passwordDate DateTime? @map("password_date")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  transactionHeaders TransactionHeader[]
+
+  @@map("users")
+}
+
+// =====================
+// Master Data Models
+// =====================
+
+model Branch {
+  id         Int      @id @default(autoincrement())
+  branchCode String   @unique @map("branch_code") @db.VarChar(20)
+  branchName String   @map("branch_name") @db.VarChar(100)
+  status     String   @default("ACTIVE") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("branches")
+}
+
+model Principal {
+  id            Int      @id @default(autoincrement())
+  principalCode String   @unique @map("principal_code") @db.VarChar(20)
+  principalName String   @map("principal_name") @db.VarChar(100)
+  status        String   @default("ACTIVE") @db.VarChar(20)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  products Product[]
+
+  @@map("principals")
+}
+
+model Brand {
+  id        Int      @id @default(autoincrement())
+  brandCode String   @unique @map("brand_code") @db.VarChar(20)
+  brandName String   @map("brand_name") @db.VarChar(100)
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  products Product[]
+
+  @@map("brands")
+}
+
+model UOM {
+  id        Int      @id @default(autoincrement())
+  uomCode   String   @unique @map("uom_code") @db.VarChar(20)
+  uomName   String   @map("uom_name") @db.VarChar(100)
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  productUOMs ProductUOM[]
+
+  @@map("uoms")
+}
+
+// =====================
+// Product Models
+// =====================
+
+model Product {
+  id                   Int     @id @default(autoincrement())
+  productCode          String  @unique @map("product_code") @db.VarChar(50)
+  productName          String  @map("product_name") @db.VarChar(200)
+  principalProductCode String? @map("principal_product_code") @db.VarChar(50)
+
+  // Barcodes
+  pieceBarcode String? @map("piece_barcode") @db.VarChar(50)
+  packBarcode  String? @map("pack_barcode") @db.VarChar(50)
+  innerBarcode String? @map("inner_barcode") @db.VarChar(50)
+  caseBarcode  String? @map("case_barcode") @db.VarChar(50)
+
+  // Product Info
+  imgPath      String? @map("img_path") @db.VarChar(255)
+  shelfLife    Int     @default(0) @map("shelf_life") // in months
+  reorderPoint Int?    @map("reorder_point")
+
+  // Moving days
+  slowMovingDay   Int? @map("slow_moving_day")
+  mediumMovingDay Int? @map("medium_moving_day")
+  fastMovingDay   Int? @map("fast_moving_day")
+
+  // Partial settings
+  allowPartialIn  String @default("YES") @map("allow_partial_in") @db.VarChar(10)
+  allowPartialOut String @default("YES") @map("allow_partial_out") @db.VarChar(10)
+
+  // Case dimensions
+  caseWeight Decimal @default(0) @map("case_weight") @db.Decimal(10, 4)
+  caseWidth  Decimal @default(0) @map("case_width") @db.Decimal(10, 4)
+  caseLength Decimal @default(0) @map("case_length") @db.Decimal(10, 4)
+  caseHeight Decimal @default(0) @map("case_height") @db.Decimal(10, 4)
+  caseVolume Decimal @default(0) @map("case_volume") @db.Decimal(10, 4)
+
+  // Stock control
+  stockControl    String  @default("FEFO") @map("stock_control") @db.VarChar(50) // FEFO, FIFO, LIFO
+  maxMfgDays      Int     @default(0) @map("max_mfg_days")
+  allowMaxMfgDays String? @map("allow_max_mfg_days") @db.VarChar(20)
+  offsetDays      Int     @default(0) @map("offset_days")
+
+  // References
+  principalCode String? @map("principal_code") @db.VarChar(20)
+  brandCode     String? @map("brand_code") @db.VarChar(20)
+  baseUomCode   String? @map("base_uom_code") @db.VarChar(20)
+
+  status        String   @default("ACTIVE") @db.VarChar(20)
+  createdUserId String?  @map("created_user_id") @db.VarChar(50)
+  updatedUserId String?  @map("updated_user_id") @db.VarChar(50)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  principal          Principal?          @relation(fields: [principalCode], references: [principalCode])
+  brand              Brand?              @relation(fields: [brandCode], references: [brandCode])
+  productUOMs        ProductUOM[]
+  stocks             Stock[]
+  stockDates         StockDate[]
+  transactionDetails TransactionDetail[]
+
+  @@map("products")
+}
+
+model ProductUOM {
+  id             Int       @id @default(autoincrement())
+  productCode    String    @map("product_code") @db.VarChar(50)
+  uomCode        String    @map("uom_code") @db.VarChar(20)
+  startDate      DateTime? @map("start_date")
+  endDate        DateTime? @map("end_date")
+  uomRatio       Int       @default(1) @map("uom_ratio") // e.g., 1 CTN = 72 PCS
+  conversionRate Decimal   @default(1) @map("conversion_rate") @db.Decimal(18, 4)
+  status         String    @default("ACTIVE") @db.VarChar(20)
+  createdUserId  String?   @map("created_user_id") @db.VarChar(50)
+  updatedUserId  String?   @map("updated_user_id") @db.VarChar(50)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  product Product @relation(fields: [productCode], references: [productCode])
+  uom     UOM     @relation(fields: [uomCode], references: [uomCode])
+
+  @@unique([productCode, uomCode])
+  @@map("product_uoms")
+}
+
+// =====================
+// Warehouse Models
+// =====================
+
+model Warehouse {
+  id             Int      @id @default(autoincrement())
+  whCode         String   @unique @map("wh_code") @db.VarChar(20)
+  whName         String   @map("wh_name") @db.VarChar(100)
+  branchCode     String?  @map("branch_code") @db.VarChar(20)
+  palletCapacity Int      @default(0) @map("pallet_capacity")
+  caseCapacity   Int      @default(0) @map("case_capacity")
+  seq            Int      @default(0)
+  status         String   @default("ACTIVE") @db.VarChar(20)
+  createdUserId  String?  @map("created_user_id") @db.VarChar(50)
+  updatedUserId  String?  @map("updated_user_id") @db.VarChar(50)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  locations          Location[]
+  stocks             Stock[]
+  stockDate          StockDate[]
+  sourceTransactions TransactionHeader[] @relation("SourceWarehouse")
+  destTransactions   TransactionHeader[] @relation("DestWarehouse")
+  transactionDetails TransactionDetail[]
+
+  @@map("warehouses")
+}
+
+model Location {
+  id        Int      @id @default(autoincrement())
+  whCode    String   @map("wh_code") @db.VarChar(20)
+  locCode   String   @map("loc_code") @db.VarChar(20)
+  locName   String?  @map("loc_name") @db.VarChar(100)
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  warehouse          Warehouse           @relation(fields: [whCode], references: [whCode])
+  transactionDetails TransactionDetail[]
+  stocks             Stock[]
+  stockDates         StockDate[]
+
+  @@unique([whCode, locCode])
+  @@map("locations")
+}
+
+// =====================
+// Document Models
+// =====================
+
+model DocumentType {
+  id           Int      @id @default(autoincrement())
+  docTypeCode  String   @unique @map("doc_type_code") @db.VarChar(20)
+  docTypeName  String   @map("doc_type_name") @db.VarChar(100)
+  movementType String   @map("movement_type") @db.VarChar(10) // IN, OUT
+  status       String   @default("ACTIVE") @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  documentNumbers    DocumentNumber[]
+  transactionHeaders TransactionHeader[]
+
+  @@map("document_types")
+}
+
+model DocumentNumber {
+  id          Int      @id @default(autoincrement())
+  docTypeCode String   @map("doc_type_code") @db.VarChar(20)
+  year        Int
+  lastNumber  Int      @default(0) @map("last_number")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  documentType DocumentType @relation(fields: [docTypeCode], references: [docTypeCode])
+
+  @@unique([docTypeCode, year])
+  @@map("document_numbers")
+}
+
+model MovementType {
+  id               Int      @id @default(autoincrement())
+  movementTypeCode String   @unique @map("movement_type_code") @db.VarChar(20)
+  movementTypeName String   @map("movement_type_name") @db.VarChar(100)
+  direction        String   @db.VarChar(10) // IN, OUT
+  status           String   @default("ACTIVE") @db.VarChar(20)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("movement_types")
+}
+
+// =====================
+// Transaction Models
+// =====================
+
+model TransactionHeader {
+  id          Int      @id @default(autoincrement())
+  docNo       String   @unique @map("doc_no") @db.VarChar(50)
+  docTypeCode String   @map("doc_type_code") @db.VarChar(20)
+  docDate     DateTime @map("doc_date")
+  postDate    DateTime @map("post_date")
+  whCode      String   @map("wh_code") @db.VarChar(20)
+  locCode     String?  @map("loc_code") @db.VarChar(50)
+  toWhCode    String?  @map("to_wh_code") @db.VarChar(20)
+
+  // References (for SO numbers, etc.)
+  ref1 String? @db.VarChar(50) // e.g., SO33C2230242
+  ref2 String? @db.VarChar(50)
+  ref3 String? @db.VarChar(50)
+
+  // Movement info
+  movementTypeCode String? @map("movement_type_code") @db.VarChar(50) // 111, 211
+  salesmanCode     String? @map("salesman_code") @db.VarChar(50)
+
+  remark    String? @db.Text
+  docStatus String  @default("DRAFT") @map("doc_status") @db.VarChar(20) // DRAFT, APPROVED, CANCELLED
+  docState  String  @default("OPEN") @map("doc_state") @db.VarChar(20) // OPEN, CLOSED, WAIT
+
+  // User info
+  createdUserName String?   @map("created_user_name") @db.VarChar(50)
+  updatedUserName String?   @map("updated_user_name") @db.VarChar(50)
+  createdBy       String    @map("created_by") @db.VarChar(50)
+  updatedBy       String?   @map("updated_by") @db.VarChar(50)
+  approvedBy      String?   @map("approved_by") @db.VarChar(50)
+  approvedAt      DateTime? @map("approved_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  documentType  DocumentType        @relation(fields: [docTypeCode], references: [docTypeCode])
+  createdByUser User                @relation(fields: [createdBy], references: [userId])
+  warehouse     Warehouse           @relation("SourceWarehouse", fields: [whCode], references: [whCode])
+  toWarehouse   Warehouse?          @relation("DestWarehouse", fields: [toWhCode], references: [whCode])
+  details       TransactionDetail[]
+
+  @@map("transaction_headers")
+}
+
+model TransactionDetail {
+  id          Int     @id @default(autoincrement())
+  docNo       String  @map("doc_no") @db.VarChar(50)
+  lineNo      Int     @map("line_no")
+  productCode String  @map("product_code") @db.VarChar(50)
+  uomCode     String  @map("uom_code") @db.VarChar(20)
+  uomQty      Int     @default(0) @map("uom_qty") // Quantity in UOM (e.g., 25 CTN)
+  uomRatio    Int     @default(1) @map("uom_ratio") // e.g., 72
+  pieceQty    Int     @default(0) @map("piece_qty") // Calculated: uomQty * uomRatio
+  qty         Decimal @db.Decimal(18, 4) // Keep for compatibility
+
+  whCode  String @map("wh_code") @db.VarChar(20)
+  locCode String @default("") @map("loc_code") @db.VarChar(20)
+
+  // Movement info
+  movementTypeCode String? @map("movement_type_code") @db.VarChar(50)
+  docState         String  @default("WAIT") @map("doc_state") @db.VarChar(20)
+  recordType       String  @default("0") @map("record_type") @db.VarChar(255)
+
+  // Date info
+  mfgDate DateTime? @map("mfg_date")
+  expDate DateTime? @map("exp_date")
+  lotNo   String?   @map("lot_no") @db.VarChar(50)
+  remark  String?   @db.Text
+
+  // User info
+  createdUserName String? @map("created_user_name") @db.VarChar(50)
+  updatedUserName String? @map("updated_user_name") @db.VarChar(50)
+  createdUserId   String? @map("created_user_id") @db.VarChar(50)
+  updatedUserId   String? @map("updated_user_id") @db.VarChar(50)
+
+  status    String   @default("ACTIVE") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  header    TransactionHeader @relation(fields: [docNo], references: [docNo])
+  product   Product           @relation(fields: [productCode], references: [productCode])
+  warehouse Warehouse         @relation(fields: [whCode], references: [whCode])
+  location  Location?         @relation(fields: [whCode, locCode], references: [whCode, locCode])
+
+  @@unique([docNo, lineNo])
+  @@map("transaction_details")
+}
+
+// =====================
+// Stock Models
+// =====================
+
+model Stock {
+  id          Int    @id @default(autoincrement())
+  productCode String @map("product_code") @db.VarChar(50)
+  whCode      String @map("wh_code") @db.VarChar(20)
+  locCode     String @default("") @map("loc_code") @db.VarChar(20)
+
+  // Balances
+  balance      Int     @default(0) // Current balance in pieces
+  futureInBal  Int     @default(0) @map("future_in_bal") // Future incoming
+  futureOutBal Int     @default(0) @map("future_out_bal") // Future outgoing
+  qty          Decimal @default(0) @db.Decimal(18, 4) // Keep for compatibility
+
+  // Date tracking
+  firstInDate  DateTime? @map("first_in_date")
+  lastInDate   DateTime? @map("last_in_date")
+  firstOutDate DateTime? @map("first_out_date")
+  lastOutDate  DateTime? @map("last_out_date")
+  lastMoveDate DateTime? @map("last_move_date")
+
+  createdUserId String?  @map("created_user_id") @db.VarChar(50)
+  updatedUserId String?  @map("updated_user_id") @db.VarChar(50)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  product   Product   @relation(fields: [productCode], references: [productCode])
+  warehouse Warehouse @relation(fields: [whCode], references: [whCode])
+  location  Location? @relation(fields: [whCode, locCode], references: [whCode, locCode])
+
+  @@unique([productCode, whCode, locCode])
+  @@map("stocks")
+}
+
+model StockDate {
+  id          Int    @id @default(autoincrement())
+  productCode String @map("product_code") @db.VarChar(50)
+  whCode      String @map("wh_code") @db.VarChar(20)
+  locCode     String @default("") @map("loc_code") @db.VarChar(20)
+
+  // Manufacturing dates
+  mfgDate DateTime @map("mfg_date")
+  expDate DateTime @map("exp_date")
+
+  // Balances
+  balance      Int       @default(0)
+  futureInBal  Int       @default(0) @map("future_in_bal")
+  futureOutBal Int       @default(0) @map("future_out_bal")
+  qty          Decimal   @default(0) @db.Decimal(18, 4) // Keep for compatibility
+  stockDate    DateTime? @map("stock_date")
+
+  // Date tracking
+  firstInDate  DateTime? @map("first_in_date")
+  lastInDate   DateTime? @map("last_in_date")
+  firstOutDate DateTime? @map("first_out_date")
+  lastOutDate  DateTime? @map("last_out_date")
+  lastMoveDate DateTime? @map("last_move_date")
+
+  createdUserId String?  @map("created_user_id") @db.VarChar(50)
+  updatedUserId String?  @map("updated_user_id") @db.VarChar(50)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  product   Product   @relation(fields: [productCode], references: [productCode])
+  warehouse Warehouse @relation(fields: [whCode], references: [whCode])
+  location  Location? @relation(fields: [whCode, locCode], references: [whCode, locCode])
+
+  @@unique([productCode, whCode, locCode, mfgDate, expDate])
+  @@map("stock_dates")
+}
+
+// Stock change log
+model StockLog {
+  id           Int    @id @default(autoincrement())
+  functionName String @map("function_name") @db.VarChar(1000)
+  docNo        String @map("doc_no") @db.VarChar(50)
+  productCode  String @map("product_code") @db.VarChar(50)
+  whCode       String @map("wh_code") @db.VarChar(50)
+
+  // Old values
+  balanceOld      Int @default(0) @map("balance_old")
+  futureInBalOld  Int @default(0) @map("future_in_bal_old")
+  futureOutBalOld Int @default(0) @map("future_out_bal_old")
+
+  // Change
+  pieceQty Int @default(0) @map("piece_qty")
+
+  // New values
+  balanceNew      Int @default(0) @map("balance_new")
+  futureInBalNew  Int @default(0) @map("future_in_bal_new")
+  futureOutBalNew Int @default(0) @map("future_out_bal_new")
+
+  createdUserId String   @map("created_user_id") @db.VarChar(50)
+  updatedUserId String   @map("updated_user_id") @db.VarChar(50)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("stock_logs")
+}
+
+// Activity log for tracking user actions
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  userId      String   @map("user_id") @db.VarChar(50)
+  username    String   @db.VarChar(200)
+  action      String   @db.VarChar(50) // LOGIN, LOGOUT, CREATE, UPDATE, DELETE, APPROVE, CANCEL
+  module      String   @db.VarChar(50) // TRANSACTION, PRODUCT, WAREHOUSE, USER, etc.
+  docNo       String?  @map("doc_no") @db.VarChar(50)
+  description String?  @db.VarChar(500)
+  ipAddress   String?  @map("ip_address") @db.VarChar(50)
+  userAgent   String?  @map("user_agent") @db.VarChar(500)
+  oldValue    String?  @map("old_value") @db.Text // JSON string
+  newValue    String?  @map("new_value") @db.Text // JSON string
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("activity_logs")
+}
+
+// =====================
+// Basket Model (for temporary transaction items)
+// =====================
+
+model Basket {
+  id          Int       @id @default(autoincrement())
+  sessionId   String    @map("session_id") @db.VarChar(100)
+  productCode String    @map("product_code") @db.VarChar(50)
+  uomCode     String    @map("uom_code") @db.VarChar(20)
+  qty         Decimal   @db.Decimal(18, 4)
+  mfgDate     DateTime? @map("mfg_date")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("baskets")
+}
