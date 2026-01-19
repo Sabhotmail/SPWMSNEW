@@ -9,7 +9,7 @@ const registerSchema = z.object({
     email: z.string().email("รูปแบบอีเมลไม่ถูกต้อง").optional().or(z.literal("")),
     password: z.string().min(6, "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"),
     confirmPassword: z.string().min(1, "กรุณายืนยันรหัสผ่าน"),
-    branchCode: z.string().min(1, "กรุณาเลือกสาขา"),
+    branchCode: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "รหัสผ่านไม่ตรงกัน",
     path: ["confirmPassword"],
@@ -55,16 +55,18 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Verify branch exists
-        const branch = await prisma.branch.findUnique({
-            where: { branchCode: branchCode },
-        });
+        // Verify branch exists (if provided)
+        if (branchCode) {
+            const branch = await prisma.branch.findUnique({
+                where: { branchCode: branchCode },
+            });
 
-        if (!branch) {
-            return NextResponse.json(
-                { error: "ไม่พบข้อมูลสาขาที่เลือก" },
-                { status: 400 }
-            );
+            if (!branch) {
+                return NextResponse.json(
+                    { error: "ไม่พบข้อมูลสาขาที่เลือก" },
+                    { status: 400 }
+                );
+            }
         }
 
         // Hash password
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest) {
                 password: hashedPassword,
                 email: email || null,
                 role: 1, // Default role
-                branchCode,
+                branchCode: branchCode ?? undefined,
                 status: "ACTIVE",
                 passwordDate: new Date(),
             },

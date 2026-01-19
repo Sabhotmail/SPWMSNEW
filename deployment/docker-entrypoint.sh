@@ -15,6 +15,10 @@ echo "✓ Database is ready!"
 echo "📦 Running database migrations..."
 npx prisma migrate deploy && echo "✓ Migrations applied successfully!" || echo "⚠️ Migration skipped or already applied"
 
+# Run database seeding (create default users if not exist)
+echo "🌱 Seeding database..."
+npx prisma db seed && echo "✓ Database seeded successfully!" || echo "⚠️ Seeding skipped or already done"
+
 echo "✅ Application ready to start!"
 
 # Execute the main command

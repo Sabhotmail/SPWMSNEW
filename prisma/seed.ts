@@ -6,14 +6,14 @@ const prisma = new PrismaClient();
 async function main() {
     console.log("🌱 Seeding database...");
 
-    // Create Admin User
+    // Create Admin User (ADMIN)
     const adminPassword = await bcrypt.hash("12345678", 10);
     await prisma.user.upsert({
         where: { userId: "ADMIN" },
         update: {},
         create: {
             userId: "ADMIN",
-            username: "Administrator",
+            username: "Admin",
             password: adminPassword,
             email: "admin@spwms.com",
             role: 9,
@@ -21,7 +21,24 @@ async function main() {
             status: "ACTIVE",
         },
     });
-    console.log("✅ Created admin user");
+    console.log("✅ Created admin user (ADMIN)");
+
+    // Create Administrator User (ADMINISTRATOR)
+    const administratorPassword = await bcrypt.hash("12345678", 10);
+    await prisma.user.upsert({
+        where: { userId: "ADMINISTRATOR" },
+        update: {},
+        create: {
+            userId: "ADMINISTRATOR",
+            username: "Administrator",
+            password: administratorPassword,
+            email: "administrator@spwms.com",
+            role: 9,
+            branchCode: "HQ",
+            status: "ACTIVE",
+        },
+    });
+    console.log("✅ Created administrator user (ADMINISTRATOR)");
 
     // Create Normal User
     const userPassword = await bcrypt.hash("12345678", 10);
