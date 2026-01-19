@@ -34,8 +34,15 @@ services:
       NEXTAUTH_URL: ${NEXTAUTH_URL}
       NODE_ENV: production
       PORT: 3000
+    ports:
+      - "3000:3000"
     networks:
       - spwms-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.spwms.rule=Host(`192.168.10.157.sslip.io`) || Host(`rgok4soogwcg8o4sgkk0gosg.110.171.206.154.sslip.io`)"
+      - "traefik.http.routers.spwms.entrypoints=http"
+      - "traefik.http.services.spwms.loadbalancer.server.port=3000"
 
 networks:
   spwms-network:
