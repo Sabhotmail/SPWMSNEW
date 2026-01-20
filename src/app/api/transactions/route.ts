@@ -87,26 +87,56 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Generate document number
-        const year = new Date().getFullYear();
-        let docNumber = await prisma.documentNumber.findUnique({
-            where: { docTypeCode_year: { docTypeCode, year } },
+        // Generate document number in legacy format: [Type]S[yy][6-digit number]
+        // Example: INS26000001
+        const fullYear = new Date().getFullYear();
+        const shortYear = String(fullYear).slice(-2); // "26"
+        const prefix = `${docTypeCode}S${shortYear}`;
+
+        // 1. Get current tracking number from DocumentNumber table
+        let docNumberRecord = await prisma.documentNumber.findUnique({
+            where: { docTypeCode_year: { docTypeCode, year: fullYear } },
         });
 
-        if (!docNumber) {
-            docNumber = await prisma.documentNumber.create({
-                data: { docTypeCode, year, lastNumber: 0 },
-            });
+        let currentLastNumber = docNumberRecord?.lastNumber || 0;
+
+        // 2. Smart Check: Find the actual highest number in TransactionHeader
+        // This handles cases where data was migrated but DocumentNumber table wasn't updated.
+        const latestTransaction = await prisma.transactionHeader.findFirst({
+            where: {
+                docNo: {
+                    startsWith: prefix,
+                },
+            },
+            orderBy: {
+                docNo: "desc",
+            },
+        });
+
+        if (latestTransaction) {
+            // Extract the numeric part (last 6 digits)
+            const actualLastNumStr = latestTransaction.docNo.replace(prefix, "");
+            const actualLastNum = parseInt(actualLastNumStr);
+
+            if (!isNaN(actualLastNum) && actualLastNum > currentLastNumber) {
+                currentLastNumber = actualLastNum;
+            }
         }
 
-        const nextNumber = docNumber.lastNumber + 1;
-        const docNo = `${docTypeCode}${year}${String(nextNumber).padStart(6, "0")}`;
+        const nextNumber = currentLastNumber + 1;
+        const docNo = `${prefix}${String(nextNumber).padStart(6, "0")}`;
 
-        // Update document number
-        await prisma.documentNumber.update({
-            where: { id: docNumber.id },
-            data: { lastNumber: nextNumber },
-        });
+        // 3. Update or Create the tracking record to stay in sync
+        if (docNumberRecord) {
+            await prisma.documentNumber.update({
+                where: { id: docNumberRecord.id },
+                data: { lastNumber: nextNumber },
+            });
+        } else {
+            await prisma.documentNumber.create({
+                data: { docTypeCode, year: fullYear, lastNumber: nextNumber },
+            });
+        }
 
         // Ensure user exists in database (upsert if necessary)
         const userId = session.user.userId;

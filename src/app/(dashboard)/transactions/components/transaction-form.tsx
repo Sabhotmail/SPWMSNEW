@@ -297,7 +297,7 @@ export function TransactionForm({ type, warehouses, products, backUrl, headerOnl
                 setRef1(expressDocNo);
             }
 
-            toast.success(`เพิ่มสินค้า ${newItems.length} รายการจากเอกสาร ${expressDocNo}`);
+            toast.success(`ดึงข้อมูล ${newItems.length} รายการจากเอกสาร ${expressDocNo} สำเร็จ`);
             setShowExpressDialog(false);
             setExpressDocNo("");
 
