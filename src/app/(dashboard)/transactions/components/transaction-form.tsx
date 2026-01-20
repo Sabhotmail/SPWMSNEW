@@ -713,16 +713,7 @@ export function TransactionForm({ type, warehouses, products, backUrl, headerOnl
 
                                                 {/* Input Fields - Row 2 (for inbound only) */}
                                                 {(type === "GR" || type === "IN") && (
-                                                    <div className="grid grid-cols-4 gap-3 mt-3">
-                                                        <div>
-                                                            <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Lot No.</label>
-                                                            <Input
-                                                                placeholder="เลขล็อต"
-                                                                value={item.lotNo || ""}
-                                                                onChange={(e) => updateItem(item.id, "lotNo", e.target.value)}
-                                                                className="h-9"
-                                                            />
-                                                        </div>
+                                                    <div className="grid grid-cols-3 gap-3 mt-3">
                                                         <div>
                                                             <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">วันผลิต (MFG)</label>
                                                             <Input
