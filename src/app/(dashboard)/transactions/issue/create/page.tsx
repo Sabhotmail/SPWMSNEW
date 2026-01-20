@@ -30,7 +30,7 @@ export default async function CreateIssuePage() {
                 warehouses={serializeForJSON(warehouses)}
                 products={serializeForJSON(products)}
                 backUrl="/transactions/issue"
-                headerOnly={true}
+                headerOnly={false}
             />
         </div>
     );

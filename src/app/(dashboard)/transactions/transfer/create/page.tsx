@@ -31,7 +31,7 @@ export default async function NewTransferPage() {
                 warehouses={serializeForJSON(warehouses)}
                 products={serializeForJSON(products)}
                 backUrl="/transactions/transfer"
-                headerOnly={true}
+                headerOnly={false}
             />
         </div>
     );

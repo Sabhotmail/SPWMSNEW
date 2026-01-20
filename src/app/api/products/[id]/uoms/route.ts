@@ -26,13 +26,14 @@ export async function GET(
             }
         }
 
-        // Get product with base UOM
+        // Get product with base UOM and shelfLife
         const product = await prisma.product.findUnique({
             where: { productCode },
             select: {
                 productCode: true,
                 productName: true,
                 baseUomCode: true,
+                shelfLife: true,
             },
         });
 
@@ -111,6 +112,7 @@ export async function GET(
             productCode: product.productCode,
             productName: product.productName,
             baseUomCode: product.baseUomCode,
+            shelfLife: product.shelfLife || 0,
             uoms,
         });
     } catch (error) {

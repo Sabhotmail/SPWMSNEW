@@ -30,7 +30,7 @@ export default async function CreateReceivePage() {
                 warehouses={serializeForJSON(warehouses)}
                 products={serializeForJSON(products)}
                 backUrl="/transactions/receive"
-                headerOnly={true}
+                headerOnly={false}
             />
         </div>
     );
