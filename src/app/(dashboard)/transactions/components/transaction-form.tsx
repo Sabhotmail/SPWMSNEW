@@ -199,14 +199,28 @@ export function TransactionForm({ type, warehouses, products, backUrl, headerOnl
         fetch("/api/movement-types")
             .then(res => res.json())
             .then(data => {
-                // Filter by document type direction
-                const direction = (type === "GR" || type === "IN" || type === "ADJ") ? "IN"
-                    : (type === "GI" || type === "OUT") ? "OUT"
-                        : null;
-                if (direction) {
-                    setMovementTypes(data.filter((mt: MovementType) => mt.direction === direction));
+                // Filter by document type direction (ADJ allows both IN and OUT)
+                if (type === "ADJ") {
+                    setMovementTypes(
+                        data.filter(
+                            (mt: MovementType) =>
+                                mt.direction === "IN" || mt.direction === "OUT"
+                        )
+                    );
                 } else {
-                    setMovementTypes(data);
+                    const direction =
+                        type === "GR" || type === "IN"
+                            ? "IN"
+                            : type === "GI" || type === "OUT"
+                              ? "OUT"
+                              : null;
+                    if (direction) {
+                        setMovementTypes(
+                            data.filter((mt: MovementType) => mt.direction === direction)
+                        );
+                    } else {
+                        setMovementTypes(data);
+                    }
                 }
             })
             .catch(err => console.error("Error fetching movement types:", err));

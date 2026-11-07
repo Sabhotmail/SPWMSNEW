@@ -64,6 +64,7 @@ const menuItems = [
             { title: "รับสินค้า", icon: ArrowDownToLine, href: "/transactions/receive" },
             { title: "จ่ายสินค้า", icon: ArrowUpFromLine, href: "/transactions/issue" },
             { title: "โอนย้าย", icon: ArrowLeftRight, href: "/transactions/transfer" },
+            { title: "ปรับปรุงสต็อก", icon: FileEdit, href: "/transactions/adjust" },
             { title: "เอกสาร", icon: FileText, href: "/documents" },
         ],
     },

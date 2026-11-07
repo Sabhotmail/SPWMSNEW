@@ -7,23 +7,28 @@ import {
     ArrowUpFromLine,
     TrendingUp,
     AlertTriangle,
+    CheckCircle2,
+    XCircle,
+    FileEdit,
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { StockExpiryAlerts } from "@/components/dashboard/stock-expiry-alerts";
+import {
+    dashboardByPostdate,
+    monthRange,
+    todayRange,
+} from "@/lib/dashboard";
+import { Button } from "@/components/ui/button";
 
 async function getDashboardStats() {
-    const [
-        totalProducts,
-        totalWarehouses,
-        totalStock,
-        pendingTransactions,
-    ] = await Promise.all([
-        prisma.product.count({ where: { status: "ACTIVE" } }),
-        prisma.warehouse.count({ where: { status: "ACTIVE" } }),
-        prisma.stock.aggregate({ _sum: { qty: true } }),
-        prisma.transactionHeader.count({ where: { docStatus: "DRAFT" } }),
-    ]);
+    const [totalProducts, totalWarehouses, totalStock, pendingTransactions] =
+        await Promise.all([
+            prisma.product.count({ where: { status: "ACTIVE" } }),
+            prisma.warehouse.count({ where: { status: "ACTIVE" } }),
+            prisma.stock.aggregate({ _sum: { qty: true } }),
+            prisma.transactionHeader.count({ where: { docStatus: "DRAFT" } }),
+        ]);
 
     return {
         totalProducts,
@@ -33,9 +38,24 @@ async function getDashboardStats() {
     };
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ fromdate?: string; todate?: string; range?: string }>;
+}) {
     const session = await auth();
-    const stats = await getDashboardStats();
+    const params = await searchParams;
+    const preset =
+        params.range === "today"
+            ? todayRange()
+            : params.fromdate && params.todate
+              ? { fromdate: params.fromdate, todate: params.todate }
+              : monthRange();
+
+    const [stats, postdate] = await Promise.all([
+        getDashboardStats(),
+        dashboardByPostdate(preset.fromdate, preset.todate),
+    ]);
 
     const statCards = [
         {
@@ -60,7 +80,7 @@ export default async function DashboardPage() {
             bgColor: "bg-green-100",
         },
         {
-            title: "รอดำเนินการ",
+            title: "รอดำเนินการ (ทั้งหมด)",
             value: stats.pendingTransactions.toLocaleString(),
             icon: AlertTriangle,
             color: "text-orange-600",
@@ -68,32 +88,123 @@ export default async function DashboardPage() {
         },
     ];
 
+    const postCards = [
+        {
+            title: "ร่าง (DRAFT)",
+            value: postdate.counts.DRAFT,
+            href: "/documents?status=DRAFT",
+            icon: AlertTriangle,
+            color: "text-yellow-700",
+            bg: "bg-yellow-50",
+        },
+        {
+            title: "อนุมัติแล้ว",
+            value: postdate.counts.APPROVED,
+            href: "/documents?status=APPROVED",
+            icon: CheckCircle2,
+            color: "text-green-700",
+            bg: "bg-green-50",
+        },
+        {
+            title: "ยกเลิก",
+            value: postdate.counts.CANCELLED,
+            href: "/documents?status=CANCELLED",
+            icon: XCircle,
+            color: "text-red-700",
+            bg: "bg-red-50",
+        },
+    ];
+
     return (
         <div className="p-6 space-y-6">
-            {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                    ยินดีต้อนรับ, {session?.user?.name || session?.user?.userId}
-                </h1>
-                <p className="text-slate-500">
-                    ภาพรวมระบบจัดการคลังสินค้าของคุณ
-                </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+                        ยินดีต้อนรับ, {session?.user?.name || session?.user?.userId}
+                    </h1>
+                    <p className="text-slate-500">
+                        สรุปเอกสารตามวันที่มีผลสต็อก · {postdate.fromdate} ถึง {postdate.todate}
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        asChild
+                        variant={!params.range && !params.fromdate ? "default" : "outline"}
+                        size="sm"
+                    >
+                        <Link href="/dashboard">เดือนปัจจุบัน</Link>
+                    </Button>
+                    <Button
+                        asChild
+                        variant={params.range === "today" ? "default" : "outline"}
+                        size="sm"
+                    >
+                        <Link href="/dashboard?range=today">วันปัจจุบัน</Link>
+                    </Button>
+                </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <form className="flex flex-col gap-2 rounded-lg border bg-white p-4 shadow-sm sm:flex-row sm:items-end dark:bg-slate-950">
+                <div>
+                    <label htmlFor="fromdate" className="mb-1 block text-sm font-medium">
+                        จากวันที่
+                    </label>
+                    <input
+                        id="fromdate"
+                        name="fromdate"
+                        type="date"
+                        defaultValue={preset.fromdate}
+                        className="flex h-9 rounded-md border px-3 text-sm"
+                        required
+                    />
+                </div>
+                <div>
+                    <label htmlFor="todate" className="mb-1 block text-sm font-medium">
+                        ถึงวันที่
+                    </label>
+                    <input
+                        id="todate"
+                        name="todate"
+                        type="date"
+                        defaultValue={preset.todate}
+                        className="flex h-9 rounded-md border px-3 text-sm"
+                        required
+                    />
+                </div>
+                <Button type="submit" size="sm">
+                    เลือกช่วงวันที่
+                </Button>
+            </form>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {postCards.map((c) => (
+                    <Link key={c.title} href={c.href}>
+                        <Card className={`border-0 shadow-sm transition-colors hover:ring-2 hover:ring-slate-200 ${c.bg}`}>
+                            <CardContent className="flex items-center justify-between p-6">
+                                <div>
+                                    <p className="text-sm font-medium text-slate-500">{c.title}</p>
+                                    <p className="mt-1 text-3xl font-bold tabular-nums">{c.value}</p>
+                                </div>
+                                <c.icon className={`h-8 w-8 ${c.color}`} />
+                            </CardContent>
+                        </Card>
+                    </Link>
+                ))}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {statCards.map((stat) => (
                     <Card key={stat.title} className="border-0 shadow-sm">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-slate-500">{stat.title}</p>
-                                    <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                                    <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
                                         {stat.value}
                                     </p>
                                 </div>
-                                <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-                                    <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                                <div className={`rounded-xl p-3 ${stat.bgColor}`}>
+                                    <stat.icon className={`h-6 w-6 ${stat.color}`} />
                                 </div>
                             </div>
                         </CardContent>
@@ -101,25 +212,20 @@ export default async function DashboardPage() {
                 ))}
             </div>
 
-            {/* Stock Expiry Warnings */}
             <StockExpiryAlerts />
 
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card className="border-0 shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <ArrowDownToLine className="w-5 h-5 text-green-600" />
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <ArrowDownToLine className="h-5 w-5 text-green-600" />
                             รับสินค้าเข้า
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-slate-500 text-sm mb-4">
-                            บันทึกการรับสินค้าเข้าคลัง
-                        </p>
                         <Link
                             href="/transactions/receive"
-                            className="inline-flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium w-full"
+                            className="inline-flex w-full items-center justify-center rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
                         >
                             ดูรายการรับสินค้า
                         </Link>
@@ -128,18 +234,15 @@ export default async function DashboardPage() {
 
                 <Card className="border-0 shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <ArrowUpFromLine className="w-5 h-5 text-orange-600" />
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <ArrowUpFromLine className="h-5 w-5 text-orange-600" />
                             จ่ายสินค้าออก
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-slate-500 text-sm mb-4">
-                            บันทึกการจ่ายสินค้าออกจากคลัง
-                        </p>
                         <Link
                             href="/transactions/issue"
-                            className="inline-flex items-center justify-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm font-medium w-full"
+                            className="inline-flex w-full items-center justify-center rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
                         >
                             ดูรายการจ่ายสินค้า
                         </Link>
@@ -148,20 +251,34 @@ export default async function DashboardPage() {
 
                 <Card className="border-0 shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <ArrowDownToLine className="w-5 h-5 text-blue-600 rotate-90" />
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <ArrowDownToLine className="h-5 w-5 rotate-90 text-blue-600" />
                             โอนย้ายสินค้า
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <p className="text-slate-500 text-sm mb-4">
-                            บันทึกการโอนย้ายระหว่างคลัง
-                        </p>
                         <Link
                             href="/transactions/transfer"
-                            className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium w-full"
+                            className="inline-flex w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                         >
                             ดูรายการโอนย้าย
+                        </Link>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-0 shadow-sm">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                            <FileEdit className="h-5 w-5 text-violet-600" />
+                            ปรับปรุงสต็อก
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Link
+                            href="/transactions/adjust"
+                            className="inline-flex w-full items-center justify-center rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+                        >
+                            ดูรายการปรับปรุง
                         </Link>
                     </CardContent>
                 </Card>

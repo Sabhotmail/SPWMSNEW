@@ -63,7 +63,14 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Invalid document type" }, { status: 400 });
         }
 
-        const isOutbound = documentType.movementType === "OUT" || docTypeCode === "TRN";
+        // Resolve outbound from document type, or ADJ movement type direction
+        let isOutbound = documentType.movementType === "OUT" || docTypeCode === "TRN" || docTypeCode === "TF";
+        if (docTypeCode === "ADJ" && movementTypeCode) {
+            const mt = await prisma.movementType.findUnique({
+                where: { movementTypeCode },
+            });
+            if (mt) isOutbound = mt.direction === "OUT";
+        }
 
         // For outbound transactions, validate stock availability BEFORE creating
         if (isOutbound && items && items.length > 0) {
@@ -87,57 +94,6 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Generate document number in legacy format: [Type]S[yy][6-digit number]
-        // Example: INS26000001
-        const fullYear = new Date().getFullYear();
-        const shortYear = String(fullYear).slice(-2); // "26"
-        const prefix = `${docTypeCode}S${shortYear}`;
-
-        // 1. Get current tracking number from DocumentNumber table
-        let docNumberRecord = await prisma.documentNumber.findUnique({
-            where: { docTypeCode_year: { docTypeCode, year: fullYear } },
-        });
-
-        let currentLastNumber = docNumberRecord?.lastNumber || 0;
-
-        // 2. Smart Check: Find the actual highest number in TransactionHeader
-        // This handles cases where data was migrated but DocumentNumber table wasn't updated.
-        const latestTransaction = await prisma.transactionHeader.findFirst({
-            where: {
-                docNo: {
-                    startsWith: prefix,
-                },
-            },
-            orderBy: {
-                docNo: "desc",
-            },
-        });
-
-        if (latestTransaction) {
-            // Extract the numeric part (last 6 digits)
-            const actualLastNumStr = latestTransaction.docNo.replace(prefix, "");
-            const actualLastNum = parseInt(actualLastNumStr);
-
-            if (!isNaN(actualLastNum) && actualLastNum > currentLastNumber) {
-                currentLastNumber = actualLastNum;
-            }
-        }
-
-        const nextNumber = currentLastNumber + 1;
-        const docNo = `${prefix}${String(nextNumber).padStart(6, "0")}`;
-
-        // 3. Update or Create the tracking record to stay in sync
-        if (docNumberRecord) {
-            await prisma.documentNumber.update({
-                where: { id: docNumberRecord.id },
-                data: { lastNumber: nextNumber },
-            });
-        } else {
-            await prisma.documentNumber.create({
-                data: { docTypeCode, year: fullYear, lastNumber: nextNumber },
-            });
-        }
-
         // Ensure user exists in database (upsert if necessary)
         const userId = session.user.userId;
         let existingUser = await prisma.user.findUnique({
@@ -158,8 +114,45 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        // Create transaction header using Prisma transaction
+        // Legacy format: [Type]S[yy][6-digit] e.g. INS26000001 — allocate atomically
+        const fullYear = new Date().getFullYear();
+        const shortYear = String(fullYear).slice(-2);
+        const prefix = `${docTypeCode}S${shortYear}`;
+
         const transaction = await prisma.$transaction(async (txPrisma) => {
+            await txPrisma.$executeRaw`
+                INSERT INTO document_numbers (doc_type_code, year, last_number, created_at, updated_at)
+                VALUES (${docTypeCode}, ${fullYear}, 0, NOW(), NOW())
+                ON CONFLICT (doc_type_code, year) DO NOTHING
+            `;
+
+            const locked = await txPrisma.$queryRaw<Array<{ id: number; last_number: number }>>`
+                SELECT id, last_number FROM document_numbers
+                WHERE doc_type_code = ${docTypeCode} AND year = ${fullYear}
+                FOR UPDATE
+            `;
+            if (!locked.length) {
+                throw new Error("Failed to lock document number counter");
+            }
+
+            const maxRow = await txPrisma.$queryRaw<Array<{ max_no: string | null }>>`
+                SELECT MAX(doc_no) AS max_no FROM transaction_headers
+                WHERE doc_no LIKE ${prefix + "%"}
+            `;
+            let maxExisting = 0;
+            const maxNo = maxRow[0]?.max_no;
+            if (maxNo && maxNo.startsWith(prefix)) {
+                maxExisting = Number(maxNo.slice(prefix.length)) || 0;
+            }
+
+            const nextNumber = Math.max(locked[0].last_number, maxExisting) + 1;
+            const docNo = `${prefix}${String(nextNumber).padStart(6, "0")}`;
+
+            await txPrisma.documentNumber.update({
+                where: { id: locked[0].id },
+                data: { lastNumber: nextNumber },
+            });
+
             // Create the transaction
             const tx = await txPrisma.transactionHeader.create({
                 data: {
@@ -220,6 +213,7 @@ export async function POST(request: NextRequest) {
         // Update Future Stock for each item (outside the transaction for better error handling)
         if (items && items.length > 0) {
             const direction: "IN" | "OUT" = isOutbound ? "OUT" : "IN";
+            const createdDocNo = transaction.docNo;
 
             for (const item of items) {
                 const pieceQty = item.pieceQty || Number(item.qty);
@@ -232,13 +226,13 @@ export async function POST(request: NextRequest) {
                     direction: direction,
                     mfgDate: item.mfgDate ? new Date(item.mfgDate) : null,
                     expDate: item.expDate ? new Date(item.expDate) : null,
-                    docNo: docNo,
+                    docNo: createdDocNo,
                     userId: session.user.userId,
                 });
             }
 
             // For Transfer, also update destination warehouse future stock
-            if (docTypeCode === "TRN" && toWhCode) {
+            if ((docTypeCode === "TRN" || docTypeCode === "TF") && toWhCode) {
                 for (const item of items) {
                     const pieceQty = item.pieceQty || Number(item.qty);
 
@@ -250,7 +244,7 @@ export async function POST(request: NextRequest) {
                         direction: "IN",
                         mfgDate: item.mfgDate ? new Date(item.mfgDate) : null,
                         expDate: item.expDate ? new Date(item.expDate) : null,
-                        docNo: docNo,
+                        docNo: createdDocNo,
                         userId: session.user.userId,
                     });
                 }

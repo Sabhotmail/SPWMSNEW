@@ -135,11 +135,15 @@ async function main() {
     });
     console.log("✅ Created brand");
 
-    // Create Document Types
+    // Create Document Types (include legacy aliases used by UI)
     const docTypes = [
         { docTypeCode: "GR", docTypeName: "ใบรับสินค้า", movementType: "IN" },
         { docTypeCode: "GI", docTypeName: "ใบเบิกสินค้า", movementType: "OUT" },
         { docTypeCode: "TF", docTypeName: "ใบโอนสินค้า", movementType: "OUT" },
+        { docTypeCode: "IN", docTypeName: "รับสินค้า (Legacy)", movementType: "IN" },
+        { docTypeCode: "OUT", docTypeName: "จ่ายสินค้า (Legacy)", movementType: "OUT" },
+        { docTypeCode: "TRN", docTypeName: "โอนย้าย", movementType: "OUT" },
+        { docTypeCode: "ADJ", docTypeName: "ปรับปรุงสต็อก", movementType: "IN" },
     ];
     for (const docType of docTypes) {
         await prisma.documentType.upsert({

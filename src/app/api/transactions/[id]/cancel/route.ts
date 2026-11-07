@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { reverseFutureStock } from "@/lib/future-stock";
 import { logActivity } from "@/lib/logging";
+import { canCancelDoctype } from "@/lib/role";
 
 export async function POST(
     request: NextRequest,
@@ -10,8 +11,7 @@ export async function POST(
 ) {
     try {
         const session = await auth();
-        // Only Managers or Admins can cancel (Role >= 7)
-        if (!session || session.user.role < 7) {
+        if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -28,6 +28,13 @@ export async function POST(
 
         if (!tx) {
             return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+        }
+
+        if (!canCancelDoctype(session.user.role, tx.docTypeCode)) {
+            return NextResponse.json(
+                { error: "สิทธิ์ไม่พอสำหรับยกเลิกเอกสารนี้" },
+                { status: 403 }
+            );
         }
 
         if (tx.docStatus !== "DRAFT") {

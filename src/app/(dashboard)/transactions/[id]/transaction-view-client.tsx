@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { AddProductDialog, AddItemData } from "@/components/transactions/add-product-dialog";
+import { canApproveDoctype, canCancelDoctype } from "@/lib/role";
 
 interface TransactionViewClientProps {
     transaction: any;
@@ -42,6 +43,8 @@ interface TransactionViewClientProps {
 }
 
 export function TransactionViewClient({ transaction, userRole, products }: TransactionViewClientProps) {
+    const canApprove = canApproveDoctype(userRole, transaction.docTypeCode);
+    const canCancel = canCancelDoctype(userRole, transaction.docTypeCode);
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [showApproveDialog, setShowApproveDialog] = useState(false);
@@ -243,29 +246,33 @@ export function TransactionViewClient({ transaction, userRole, products }: Trans
                 </div>
 
                 <div className="flex gap-2">
-                    {transaction.docStatus === "DRAFT" && userRole >= 7 && (
+                    {transaction.docStatus === "DRAFT" && (canApprove || canCancel) && (
                         <>
-                            <Button
-                                variant="outline"
-                                className="text-red-600 border-red-200 hover:bg-red-50"
-                                onClick={() => setShowCancelDialog(true)}
-                                disabled={isLoading}
-                            >
-                                <XCircle className="w-4 h-4 mr-2" />
-                                ยกเลิก
-                            </Button>
-                            <Button
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => setShowApproveDialog(true)}
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                ) : (
-                                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                                )}
-                                อนุมัติรายการ
-                            </Button>
+                            {canCancel ? (
+                                <Button
+                                    variant="outline"
+                                    className="text-red-600 border-red-200 hover:bg-red-50"
+                                    onClick={() => setShowCancelDialog(true)}
+                                    disabled={isLoading}
+                                >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    ยกเลิก
+                                </Button>
+                            ) : null}
+                            {canApprove ? (
+                                <Button
+                                    className="bg-green-600 hover:bg-green-700"
+                                    onClick={() => setShowApproveDialog(true)}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? (
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    ) : (
+                                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                                    )}
+                                    อนุมัติรายการ
+                                </Button>
+                            ) : null}
                         </>
                     )}
                     <Button variant="outline">

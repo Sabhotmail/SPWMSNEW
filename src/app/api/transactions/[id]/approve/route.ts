@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { serializeForJSON } from "@/lib/serialize";
 import { logActivity, logStockChange } from "@/lib/logging";
 import { reverseFutureStock } from "@/lib/future-stock";
+import { canApproveDoctype } from "@/lib/role";
 
 export async function POST(
     request: NextRequest,
@@ -11,8 +12,7 @@ export async function POST(
 ) {
     try {
         const session = await auth();
-        // Only Managers or Admins can approve (Role >= 7)
-        if (!session || session.user.role < 7) {
+        if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -27,6 +27,21 @@ export async function POST(
 
         if (!txPreCheck) {
             return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+        }
+
+        // Legacy: IN/OUT ≥5, TRN/ADJ ≥7
+        if (!canApproveDoctype(session.user.role, txPreCheck.docTypeCode)) {
+            return NextResponse.json(
+                {
+                    error:
+                        txPreCheck.docTypeCode === "TRN" ||
+                        txPreCheck.docTypeCode === "TF" ||
+                        txPreCheck.docTypeCode === "ADJ"
+                            ? "สิทธิ์ไม่พอสำหรับอนุมัติ TRN/ADJ (ต้องระดับ 7 ขึ้นไป)"
+                            : "สิทธิ์ไม่พอสำหรับอนุมัติเอกสาร (ต้องระดับ 5 ขึ้นไป)",
+                },
+                { status: 403 }
+            );
         }
 
         // Process Approval with Prisma Transaction + Row Locking

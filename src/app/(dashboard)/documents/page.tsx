@@ -15,6 +15,7 @@ import {
     ArrowDownToLine,
     ArrowUpFromLine,
     ArrowLeftRight,
+    FileEdit,
     Search,
 } from "lucide-react";
 import Link from "next/link";
@@ -31,6 +32,7 @@ async function getAllDocuments(status?: string, docType?: string) {
             'GR': ['GR', 'IN'],      // รับสินค้า
             'GI': ['GI', 'OUT'],      // จ่ายสินค้า
             'TRN': ['TRN', 'TF'],     // โอนย้าย
+            'ADJ': ['ADJ'],           // ปรับปรุง
         };
         const mappedTypes = docTypeMap[docType] || [docType];
         where.docTypeCode = { in: mappedTypes };
@@ -83,6 +85,10 @@ export default async function DocumentsPage({
         GR: ArrowDownToLine,
         GI: ArrowUpFromLine,
         TRN: ArrowLeftRight,
+        ADJ: FileEdit,
+        IN: ArrowDownToLine,
+        OUT: ArrowUpFromLine,
+        TF: ArrowLeftRight,
     };
 
     return (
@@ -152,6 +158,11 @@ export default async function DocumentsPage({
                 <Link href={status ? `/documents?status=${status}&docType=TRN` : "/documents?docType=TRN"}>
                     <Badge variant={docType === "TRN" ? "default" : "outline"} className="cursor-pointer px-3 py-1 bg-blue-100 text-blue-700 hover:bg-blue-200">
                         <ArrowLeftRight className="w-3 h-3 mr-1" /> โอนย้าย
+                    </Badge>
+                </Link>
+                <Link href={status ? `/documents?status=${status}&docType=ADJ` : "/documents?docType=ADJ"}>
+                    <Badge variant={docType === "ADJ" ? "default" : "outline"} className="cursor-pointer px-3 py-1 bg-violet-100 text-violet-700 hover:bg-violet-200">
+                        <FileEdit className="w-3 h-3 mr-1" /> ปรับปรุง
                     </Badge>
                 </Link>
             </div>
